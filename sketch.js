@@ -10,70 +10,53 @@ function linear(x) {
 }
 
 class Brain {
-  constructor(mat1, mat2, mat3, mat4) {
-    if (!(mat1 && mat2 && mat3 && mat4)) {
-      let mat1 = [];
-      for (let i = 0; i < 5; i++) {
-        let row = [];
-        for (let j = 0; j < 10; j++) {
-          row.push(random()*2-1);
-        }
-        mat1.push(row);
+  constructor(mats, inputLength, numHidden, hiddenLength, outputLength) {
+    if (!mats) {
+      this.mats = [];
+
+      this.mats.push(this.fromTo(inputLength, hiddenLength));
+
+      for (let i = 0; i < numHidden; i++) {
+        this.mats.push(this.fromTo(hiddenLength, hiddenLength));
       }
-      this.mat1 = math.matrix(mat1);
-      let mat2 = [];
-      for (let i = 0; i < 10; i++) {
-        let row = [];
-        for (let j = 0; j < 10; j++) {
-          row.push(random()*2-1);
-        }
-        mat2.push(row);
-      }
-      this.mat2 = math.matrix(mat2);
-      let mat3 = [];
-      for (let i = 0; i < 10; i++) {
-        let row = [];
-        for (let j = 0; j < 10; j++) {
-          row.push(random()*2-1);
-        }
-        mat3.push(row);
-      }
-      this.mat3 = math.matrix(mat3);
-      let mat4 = [];
-      for (let i = 0; i < 10; i++) {
-        let row = [];
-        for (let j = 0; j < 3; j++) {
-          row.push(random()*2-1);
-        }
-        mat4.push(row);
-      }
-      this.mat4 = math.matrix(mat4);
+
+      this.mats.push(this.fromTo(hiddenLength, outputLength));
     } else {
-      this.mat1 = mat1;
-      this.mat2 = mat2;
-      this.mat3 = mat3;
-      this.mat4 = mat4;
+      this.mats = mats;
     }
+  }
+
+  fromTo(from, to) {
+    let mat = [];
+    for (let i = 0; i < from; i++) {
+      let row = [];
+      for (let j = 0; j < to; j++) {
+        row.push(random()*2-1);
+      }
+      mat.push(row);
+    }
+    return math.matrix(mat);
   }
 
   setInput(input) {
     this.input = math.matrix(input);
   }
 
+  processLayer(mat1, mat2) {
+    let layer = math.multiply(mat1, mat2);
+    return layer.map((value, index, matrix) => {
+      return linear(value);
+    });
+  }
+
   process() {
-    let hidden1 = math.multiply(this.input, this.mat1);
-    hidden1 = hidden1.map((value, index, matrix) => {
-      return linear(value);
-    });
-    let hidden2 = math.multiply(hidden1, this.mat2);
-    hidden2 = hidden2.map((value, index, matrix) => {
-      return linear(value);
-    });
-    let hidden3 = math.multiply(hidden2, this.mat3);
-    hidden3 = hidden3.map((value, index, matrix) => {
-      return linear(value);
-    });
-    this.output = math.multiply(hidden3, this.mat4);
+
+    let layer = this.input;
+    for (let i = 0; i < this.mats.length; i++) {
+      layer = this.processLayer(layer, this.mats[i]);
+    }
+
+    this.output = layer;
   }
 
   getOutput() {
@@ -81,38 +64,30 @@ class Brain {
   }
 
   copy() {
-    return new Brain(this.mat1, this.mat2, this.mat3, this.mat4);
+    let newBrainMats = [];
+    for (let i = 0; i < this.mats.length; i++) {
+      newBrainMats.push(this.mats[i].clone());
+    }
+    return new Brain(newBrainMats);
+  }
+
+  mutateMat(mat) {
+    return math.map(mat, (value) => {
+
+      const chance = random();
+
+      if (chance < 0.05) {
+        return value + random(-0.5, 0.5);
+      }
+
+      return value;
+    });
   }
 
   mutate() {
-    this.mat1 = math.map(this.mat1, (value) => {
-      const chance = random();
-      if (chance < 0.05) {
-        return value + random(-0.5, 0.5);
-      }
-      return value;
-    });
-    this.mat2 = math.map(this.mat2, (value) => {
-      const chance = random();
-      if (chance < 0.05) {
-        return value + random(-0.5, 0.5);
-      }
-      return value;
-    });
-    this.mat3 = math.map(this.mat3, (value) => {
-      const chance = random();
-      if (chance < 0.05) {
-        return value + random(-0.5, 0.5);
-      }
-      return value;
-    });
-    this.mat4 = math.map(this.mat4, (value) => {
-      const chance = random();
-      if (chance < 0.05) {
-        return value + random(-0.5, 0.5);
-      }
-      return value;
-    });
+    for (let i = 0; i < this.mats.length; i++) {
+      this.mats[i] = this.mutateMat(this.mats[i]);
+    }
   }
 }
 
@@ -122,7 +97,7 @@ class Bird {
     this.pos = pos || createVector(width/2,height/2);
     this.vel = createVector(0,0);
     this.acc = createVector(0,0);
-    this.brain = brain || new Brain();
+    this.brain = brain || new Brain(null, 5, 5, 10, 3);
     this.color = col || color(0,100,100);
   }
 
